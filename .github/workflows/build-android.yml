@@ -1,0 +1,93 @@
+name: Construire APK Android
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Récupérer le projet
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Installer Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Restaurer le modèle HTML compacté
+        run: |
+          mkdir -p build www
+          python - <<'PY'
+          from pathlib import Path
+          import base64, lzma
+          encoded = b''.join(p.read_bytes() for p in sorted(Path('source/template-parts').glob('part-*')))
+          Path('build/template.html').write_bytes(lzma.decompress(base64.b85decode(encoded)))
+          PY
+
+      - name: Télécharger les modèles 3D officiels Kenney
+        run: |
+          set -euxo pipefail
+          mkdir -p build/packs/{market,characters,building,food,furniture}
+          curl -L --fail --retry 3 -o build/market.zip 'https://www.kenney.nl/media/pages/assets/mini-market/463f38da51-1729865423/kenney_mini-market.zip'
+          curl -L --fail --retry 3 -o build/characters.zip 'https://kenney.nl/media/pages/assets/mini-characters/bfc7e272b4-1774770718/kenney_mini-characters.zip'
+          curl -L --fail --retry 3 -o build/building.zip 'https://kenney.nl/media/pages/assets/building-kit/0de7aaa492-1743244741/kenney_building-kit.zip'
+          curl -L --fail --retry 3 -o build/food.zip 'https://www.kenney.nl/media/pages/assets/food-kit/83086fa91c-1719418518/kenney_food-kit.zip'
+          curl -L --fail --retry 3 -o build/furniture.zip 'https://kenney.nl/media/pages/assets/furniture-kit/440e0608a4-1677580847/kenney_furniture-kit.zip'
+          unzip -q build/market.zip -d build/packs/market
+          unzip -q build/characters.zip -d build/packs/characters
+          unzip -q build/building.zip -d build/packs/building
+          unzip -q build/food.zip -d build/packs/food
+          unzip -q build/furniture.zip -d build/packs/furniture
+
+      - name: Réintégrer les 45 modèles dans le jeu
+        run: |
+          python scripts/inject_assets.py \
+            --template build/template.html \
+            --output www/index.html \
+            --market build/packs/market \
+            --characters build/packs/characters \
+            --building build/packs/building \
+            --food build/packs/food \
+            --furniture build/packs/furniture
+
+      - name: Installer Capacitor et Three.js
+        run: npm install --no-audit --no-fund
+
+      - name: Intégrer Three.js hors ligne
+        run: cp node_modules/three/build/three.module.js www/three.module.js
+
+      - name: Créer le projet Android
+        run: |
+          npx cap add android
+          npx cap sync android
+          chmod +x android/gradlew
+
+      - name: Compiler l'APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Préparer l'APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Mini-Marche-3D.apk
+
+      - name: Publier l'APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mini-Marche-3D-APK
+          path: Mini-Marche-3D.apk
+          if-no-files-found: error
+          retention-days: 30
