@@ -1,0 +1,1 @@
+Déclenchement Git natif de la compilation Android Mini-Marché 3D.
