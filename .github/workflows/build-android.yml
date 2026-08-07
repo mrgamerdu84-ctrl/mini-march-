@@ -22,6 +22,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Installer Java
         uses: actions/setup-java@v5
         with:
@@ -86,20 +91,48 @@ jobs:
 
       - name: Appliquer l'icône et le splash Android
         run: |
-          set -euxo pipefail
-          command -v convert >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y imagemagick)
-          for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
-            density="${spec%%:*}"; size="${spec##*:}"; dir="android/app/src/main/res/mipmap-${density}"
-            mkdir -p "$dir"
-            convert assets/icon.png -resize "${size}x${size}^" -gravity center -extent "${size}x${size}" "$dir/ic_launcher.png"
-            cp "$dir/ic_launcher.png" "$dir/ic_launcher_round.png"
-          done
-          for spec in mdpi:108 hdpi:162 xhdpi:216 xxhdpi:324 xxxhdpi:432; do
-            density="${spec%%:*}"; size="${spec##*:}"; inner=$((size*72/100)); dir="android/app/src/main/res/mipmap-${density}"
-            convert assets/icon.png -resize "${inner}x${inner}" -gravity center -background none -extent "${size}x${size}" "$dir/ic_launcher_foreground.png"
-          done
-          mkdir -p android/app/src/main/res/drawable
-          convert assets/splash.png -resize '1080x1920^' -gravity center -extent 1080x1920 android/app/src/main/res/drawable/splash.png
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          RES = getattr(Image, 'Resampling', Image).LANCZOS
+
+          def cover(image, width, height):
+              ratio = max(width / image.width, height / image.height)
+              size = (round(image.width * ratio), round(image.height * ratio))
+              image = image.resize(size, RES)
+              left = max(0, (image.width - width) // 2)
+              top = max(0, (image.height - height) // 2)
+              return image.crop((left, top, left + width, top + height))
+
+          icon = Image.open('assets/icon.png').convert('RGBA')
+          legacy = {'mdpi':48, 'hdpi':72, 'xhdpi':96, 'xxhdpi':144, 'xxxhdpi':192}
+          adaptive = {'mdpi':108, 'hdpi':162, 'xhdpi':216, 'xxhdpi':324, 'xxxhdpi':432}
+
+          for density, size in legacy.items():
+              out = Path(f'android/app/src/main/res/mipmap-{density}')
+              out.mkdir(parents=True, exist_ok=True)
+              img = cover(icon, size, size)
+              img.save(out / 'ic_launcher.png', format='PNG', optimize=True)
+              img.save(out / 'ic_launcher_round.png', format='PNG', optimize=True)
+
+          for density, size in adaptive.items():
+              out = Path(f'android/app/src/main/res/mipmap-{density}')
+              out.mkdir(parents=True, exist_ok=True)
+              inner = round(size * 0.72)
+              fg = cover(icon, inner, inner)
+              canvas = Image.new('RGBA', (size, size), (0,0,0,0))
+              canvas.alpha_composite(fg, ((size-inner)//2, (size-inner)//2))
+              canvas.save(out / 'ic_launcher_foreground.png', format='PNG', optimize=True)
+
+          splash = Image.open('assets/splash.png').convert('RGB')
+          splash = cover(splash, 1080, 1920)
+          out = Path('android/app/src/main/res/drawable')
+          out.mkdir(parents=True, exist_ok=True)
+          splash.save(out / 'splash.png', format='PNG', optimize=True)
+          print('✓ Icône Android et splash générés avec Pillow')
+          PY
 
       - name: Compiler l'APK
         run: |
