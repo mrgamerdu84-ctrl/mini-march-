@@ -43,6 +43,32 @@ jobs:
           Path('build/template.html').write_bytes(lzma.decompress(base64.b85decode(encoded)))
           PY
 
+      - name: Reconstituer et vérifier l'icône et le splash
+        run: |
+          mkdir -p build/branding
+          python - <<'PY'
+          from pathlib import Path
+          import base64, hashlib
+
+          root = Path('assets/branding-parts')
+          targets = [
+              ('icon.jpg', 'icon-*.txt', 'e930eac7db921c16c8ab5d23f10d957f16f821fb499cf1626fb22796c7faab80'),
+              ('splash.jpg', 'splash-*.txt', '1147116a9609b880c1ccaffa125916526a81d895c732b7c1b86f5da5ab88e7ad'),
+          ]
+          for filename, pattern, expected in targets:
+              parts = sorted(root.glob(pattern))
+              if not parts:
+                  raise SystemExit(f'Aucun morceau trouvé pour {filename}')
+              encoded = ''.join(p.read_text(encoding='utf-8').strip() for p in parts)
+              data = base64.b64decode(encoded, validate=True)
+              actual = hashlib.sha256(data).hexdigest()
+              if actual != expected:
+                  raise SystemExit(f'{filename} invalide: SHA256 {actual} != {expected}')
+              out = Path('build/branding') / filename
+              out.write_bytes(data)
+              print(f'✓ {filename}: {len(data)} octets, SHA256 vérifié')
+          PY
+
       - name: Télécharger les modèles 3D officiels Kenney
         run: |
           set -euxo pipefail
@@ -74,7 +100,7 @@ jobs:
 
       - name: Corriger l'introduction mobile et ajouter le splash
         run: |
-          cp assets/splash.jpg www/splash.jpg
+          cp build/branding/splash.jpg www/splash.jpg
           python scripts/fix_mobile_intro.py --input www/index.html --output www/index.html
 
       - name: Installer Capacitor et Three.js
@@ -106,8 +132,8 @@ jobs:
               top = max(0, (image.height - height) // 2)
               return image.crop((left, top, left + width, top + height))
 
-          icon = Image.open('assets/icon.jpg').convert('RGBA')
-          splash = Image.open('assets/splash.jpg').convert('RGB')
+          icon = Image.open('build/branding/icon.jpg').convert('RGBA')
+          splash = Image.open('build/branding/splash.jpg').convert('RGB')
           icon.load(); splash.load()
           print('✓ Sources branding valides :', icon.size, splash.size)
 
@@ -126,7 +152,7 @@ jobs:
               out.mkdir(parents=True, exist_ok=True)
               inner = round(size * 0.72)
               fg = cover(icon, inner, inner)
-              canvas = Image.new('RGBA', (size, size), (0,0,0,0))
+              canvas = Image.new('RGBA', (size, size), (0, 0, 0, 0))
               canvas.alpha_composite(fg, ((size-inner)//2, (size-inner)//2))
               canvas.save(out / 'ic_launcher_foreground.png', format='PNG', optimize=True)
 
