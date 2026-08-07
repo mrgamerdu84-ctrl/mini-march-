@@ -74,7 +74,7 @@ jobs:
 
       - name: Corriger l'introduction mobile et ajouter le splash
         run: |
-          cp assets/splash.png www/splash.png
+          base64 -d assets/splash.jpg.b64 > www/splash.jpg
           python scripts/fix_mobile_intro.py --input www/index.html --output www/index.html
 
       - name: Installer Capacitor et Three.js
@@ -91,6 +91,9 @@ jobs:
 
       - name: Appliquer l'icône et le splash Android
         run: |
+          mkdir -p build/branding
+          base64 -d assets/icon.jpg.b64 > build/branding/icon.jpg
+          base64 -d assets/splash.jpg.b64 > build/branding/splash.jpg
           python -m pip install --quiet pillow
           python - <<'PY'
           from pathlib import Path
@@ -106,7 +109,7 @@ jobs:
               top = max(0, (image.height - height) // 2)
               return image.crop((left, top, left + width, top + height))
 
-          icon = Image.open('assets/icon.png').convert('RGBA')
+          icon = Image.open('build/branding/icon.jpg').convert('RGBA')
           legacy = {'mdpi':48, 'hdpi':72, 'xhdpi':96, 'xxhdpi':144, 'xxxhdpi':192}
           adaptive = {'mdpi':108, 'hdpi':162, 'xhdpi':216, 'xxhdpi':324, 'xxxhdpi':432}
 
@@ -126,12 +129,12 @@ jobs:
               canvas.alpha_composite(fg, ((size-inner)//2, (size-inner)//2))
               canvas.save(out / 'ic_launcher_foreground.png', format='PNG', optimize=True)
 
-          splash = Image.open('assets/splash.png').convert('RGB')
+          splash = Image.open('build/branding/splash.jpg').convert('RGB')
           splash = cover(splash, 1080, 1920)
           out = Path('android/app/src/main/res/drawable')
           out.mkdir(parents=True, exist_ok=True)
           splash.save(out / 'splash.png', format='PNG', optimize=True)
-          print('✓ Icône Android et splash générés avec Pillow')
+          print('✓ Icône Android et splash reconstruits depuis les JPEG propres')
           PY
 
       - name: Compiler l'APK
