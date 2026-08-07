@@ -15,9 +15,13 @@ MARKET_KEYS = [
     "freezers-standing", "fence", "cash-register", "shopping-cart",
     "shopping-basket", "bottle-return",
 ]
-CHARACTER_KEYS = [
-    "character-employee", "char-female-a", "char-female-b", "char-female-c",
-    "char-male-a", "char-male-b", "char-male-c",
+CHARACTER_MAPPINGS = [
+    ("char-female-a", "character-female-a"),
+    ("char-female-b", "character-female-b"),
+    ("char-female-c", "character-female-c"),
+    ("char-male-a", "character-male-a"),
+    ("char-male-b", "character-male-b"),
+    ("char-male-c", "character-male-c"),
 ]
 FOOD_NAMES = [
     "apple", "banana", "bread", "cheese", "carton", "can", "bag",
@@ -101,6 +105,17 @@ def add_group(
         print(f"✓ {output_key}: {found}")
 
 
+def add_employee(output: dict[str, str], market_root: Path, character_root: Path) -> None:
+    """Use the dedicated market employee when available, otherwise a valid character fallback."""
+    try:
+        found = find_glb(market_root, "character-employee")
+        print(f"✓ character-employee: {found}")
+    except FileNotFoundError:
+        found = find_glb(character_root, "character-male-a")
+        print(f"⚠ character-employee absent du pack market, fallback: {found}")
+    output["character-employee"] = encode(found)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--template", type=Path, required=True)
@@ -114,7 +129,8 @@ def main() -> None:
 
     assets: dict[str, str] = {}
     add_group(assets, args.market, ((name, name) for name in MARKET_KEYS))
-    add_group(assets, args.characters, ((name, name) for name in CHARACTER_KEYS))
+    add_employee(assets, args.market, args.characters)
+    add_group(assets, args.characters, CHARACTER_MAPPINGS)
     add_group(assets, args.food, ((f"food-{name}", name) for name in FOOD_NAMES))
     add_group(assets, args.building, ((f"bld-{name}", name) for name in BUILDING_NAMES))
     add_group(assets, args.furniture, (("lamp-round-floor", "lamp-round-floor"),))
