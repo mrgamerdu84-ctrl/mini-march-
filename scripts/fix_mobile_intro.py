@@ -17,7 +17,7 @@ CSS = r'''
 @media(max-height:650px){.intro-card.story-card{padding:11px 12px!important}.intro-card.story-card>p{display:none}.intro-card.story-card .story-letter{font-size:13px;line-height:1.35}}
 '''
 
-SPLASH = '''\n<div id="tkSplash" aria-hidden="true"><img src="./splash.png" alt=""></div>\n'''
+SPLASH = '''\n<div id="tkSplash" aria-hidden="true"><img src="./splash.jpg" alt=""></div>\n'''
 
 JS = r'''
 <script>
