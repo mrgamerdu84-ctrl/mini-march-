@@ -67,6 +67,11 @@ jobs:
       - name: Appliquer l'histoire et la gestion du magasin
         run: python scripts/apply_gameplay_patch.py --input www/index.html --output www/index.html
 
+      - name: Corriger l'introduction mobile et ajouter le splash
+        run: |
+          cp assets/splash.png www/splash.png
+          python scripts/fix_mobile_intro.py --input www/index.html --output www/index.html
+
       - name: Installer Capacitor et Three.js
         run: npm install --no-audit --no-fund
 
@@ -78,6 +83,23 @@ jobs:
           npx cap add android
           npx cap sync android
           chmod +x android/gradlew
+
+      - name: Appliquer l'icône et le splash Android
+        run: |
+          set -euxo pipefail
+          command -v convert >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y imagemagick)
+          for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            density="${spec%%:*}"; size="${spec##*:}"; dir="android/app/src/main/res/mipmap-${density}"
+            mkdir -p "$dir"
+            convert assets/icon.png -resize "${size}x${size}^" -gravity center -extent "${size}x${size}" "$dir/ic_launcher.png"
+            cp "$dir/ic_launcher.png" "$dir/ic_launcher_round.png"
+          done
+          for spec in mdpi:108 hdpi:162 xhdpi:216 xxhdpi:324 xxxhdpi:432; do
+            density="${spec%%:*}"; size="${spec##*:}"; inner=$((size*72/100)); dir="android/app/src/main/res/mipmap-${density}"
+            convert assets/icon.png -resize "${inner}x${inner}" -gravity center -background none -extent "${size}x${size}" "$dir/ic_launcher_foreground.png"
+          done
+          mkdir -p android/app/src/main/res/drawable
+          convert assets/splash.png -resize '1080x1920^' -gravity center -extent 1080x1920 android/app/src/main/res/drawable/splash.png
 
       - name: Compiler l'APK
         run: |
