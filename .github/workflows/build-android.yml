@@ -23,7 +23,7 @@ jobs:
           node-version: 22
 
       - name: Installer Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
@@ -53,7 +53,7 @@ jobs:
           unzip -q build/food.zip -d build/packs/food
           unzip -q build/furniture.zip -d build/packs/furniture
 
-      - name: Réintégrer les 45 modèles dans le jeu
+      - name: Réintégrer les modèles 3D dans le jeu
         run: |
           python scripts/inject_assets.py \
             --template build/template.html \
@@ -63,6 +63,9 @@ jobs:
             --building build/packs/building \
             --food build/packs/food \
             --furniture build/packs/furniture
+
+      - name: Appliquer l'histoire et la gestion du magasin
+        run: python scripts/apply_gameplay_patch.py --input www/index.html --output www/index.html
 
       - name: Installer Capacitor et Three.js
         run: npm install --no-audit --no-fund
