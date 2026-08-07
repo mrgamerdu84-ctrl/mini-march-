@@ -69,7 +69,7 @@ jobs:
               print(f'✓ {filename}: {len(data)} octets, SHA256 vérifié')
           PY
 
-      - name: Télécharger les modèles 3D officiels Kenney
+      - name: Télécharger les modèles et véhicules officiels Kenney
         run: |
           set -euxo pipefail
           mkdir -p build/packs/{market,characters,building,food,furniture}
@@ -78,6 +78,7 @@ jobs:
           curl -L --fail --retry 3 -o build/building.zip 'https://kenney.nl/media/pages/assets/building-kit/0de7aaa492-1743244741/kenney_building-kit.zip'
           curl -L --fail --retry 3 -o build/food.zip 'https://www.kenney.nl/media/pages/assets/food-kit/83086fa91c-1719418518/kenney_food-kit.zip'
           curl -L --fail --retry 3 -o build/furniture.zip 'https://kenney.nl/media/pages/assets/furniture-kit/440e0608a4-1677580847/kenney_furniture-kit.zip'
+          curl -L --fail --retry 3 -o build/vehicles.zip 'https://kenney.nl/media/pages/assets/isometric-tiles-vehicles/34c07c3393-1677695121/kenney_isometric-vehicles.zip'
           unzip -q build/market.zip -d build/packs/market
           unzip -q build/characters.zip -d build/packs/characters
           unzip -q build/building.zip -d build/packs/building
@@ -102,6 +103,13 @@ jobs:
         run: |
           cp build/branding/splash.jpg www/splash.jpg
           python scripts/fix_mobile_intro.py --input www/index.html --output www/index.html
+
+      - name: Ajouter boutique mobile, marche au sol et voitures Kenney
+        run: |
+          python scripts/mobile_gameplay_v3.py \
+            --input www/index.html \
+            --output www/index.html \
+            --vehicles-zip build/vehicles.zip
 
       - name: Installer Capacitor et Three.js
         run: npm install --no-audit --no-fund
