@@ -117,6 +117,12 @@ jobs:
             --input www/index.html \
             --output www/index.html
 
+      - name: Corriger les boutons tactiles et accélérer le rendu mobile V5
+        run: |
+          python scripts/mobile_hotfix_v5.py \
+            --input www/index.html \
+            --output www/index.html
+
       - name: Installer Capacitor et Three.js
         run: npm install --no-audit --no-fund
 
