@@ -123,6 +123,12 @@ jobs:
             --input www/index.html \
             --output www/index.html
 
+      - name: Corriger la barre mobile et les panneaux V6
+        run: |
+          python scripts/mobile_layout_v6.py \
+            --input www/index.html \
+            --output www/index.html
+
       - name: Installer Capacitor et Three.js
         run: npm install --no-audit --no-fund
 
