@@ -104,12 +104,18 @@ jobs:
           cp build/branding/splash.jpg www/splash.jpg
           python scripts/fix_mobile_intro.py --input www/index.html --output www/index.html
 
-      - name: Ajouter boutique mobile, marche au sol et voitures Kenney
+      - name: Ajouter les véhicules Kenney de base
         run: |
           python scripts/mobile_gameplay_v3.py \
             --input www/index.html \
             --output www/index.html \
             --vehicles-zip build/vehicles.zip
+
+      - name: Appliquer la refonte totale mobile V4
+        run: |
+          python scripts/refonte_totale_v4.py \
+            --input www/index.html \
+            --output www/index.html
 
       - name: Installer Capacitor et Three.js
         run: npm install --no-audit --no-fund
